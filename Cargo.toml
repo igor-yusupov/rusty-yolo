@@ -2,8 +2,24 @@
 name = "rusty-yolo"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
+authors = ["Igor Yusupov"]
+readme = "README.md"
+keywords = [
+    "deep-learning",
+    "machine-learning",
+    "computer-vision",
+    "yolo",
+]
+description = "Rust implementation of YOLO"
+repository = "https://github.com/igor-yusupov/rusty-yolo"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "rusty_yolo"
+path = "src/lib.rs"
+crate-type = ["lib"]
 
 [dependencies]
 tch = "0.11.0"
