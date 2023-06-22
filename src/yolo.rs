@@ -70,7 +70,8 @@ impl YOLO {
 
         let pred = self
             .model
-            .forward_ts(&[img]).unwrap()
+            .forward_ts(&[img])
+            .unwrap()
             .to_device(tch::Device::Cpu);
         let result = self.non_max_suppression(&pred.get(0), conf_thresh, iou_thresh);
 
