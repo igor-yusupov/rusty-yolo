@@ -4,14 +4,15 @@ use tch;
 
 fn main() {
     let device = tch::Device::cuda_if_available();
+    let weights = "./models/yolo.torchscript"; 
     let yolo_model = rusty_yolo::YOLO::new(
-        "./examples/simple_inference/weights/model.pt",
+        weights,
         384,
         640,
         device,
     );
-    let mut original_image =
-        tch::vision::image::load("./examples/simple_inference/images/zidane.jpg").unwrap();
+    
+let mut original_image = tch::vision::image::load("./examples/simple_inference/images/zidane.jpg").unwrap();
     let start_time = Instant::now();
 
     let results = yolo_model.predict(&original_image, 0.25, 0.35);
