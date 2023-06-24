@@ -1,4 +1,4 @@
-use tch;
+use tch::{self, Tensor};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BBox {
@@ -35,6 +35,7 @@ impl YOLO {
         conf_thresh: f64,
         iou_thresh: f64,
     ) -> Vec<Vec<BBox>> {
+        let mut image_settings = ImageSettings::new();
         let img: Vec<tch::Tensor> = images
             .into_iter()
             .map(|x| tch::vision::image::resize(&x, self.w, self.h).unwrap())
@@ -62,7 +63,8 @@ impl YOLO {
 
     pub fn predict(&self, image: &tch::Tensor, conf_thresh: f64, iou_thresh: f64) -> Vec<BBox> {
         let img = tch::vision::image::resize(&image, self.w, self.h).unwrap();
-        let img = img
+        let mut image_settings = ImageSettings::new();
+        let img = self.pre_process(img, &mut image_settings)
             .unsqueeze(0)
             .to_kind(tch::Kind::Float)
             .to_device(self.device)
@@ -182,5 +184,56 @@ impl YOLO {
         }
 
         return result;
+    }
+
+
+
+
+    fn pre_process(&self, mut img:Tensor, settings:& mut ImageSettings)->Tensor{
+        if settings.first{
+            settings.big = img.size()[1]>self.h || img.size()[2]>self.w;
+            if settings.big {
+                img = tch::vision::image::resize_preserve_aspect_ratio(&img, self.w, self.h).unwrap()
+            }
+            
+            settings.dy = (self.h-img.size()[1])/2;
+            settings.dx = (self.w-img.size()[2])/2;
+    
+            settings.smol = settings.dx>0_i64 || settings.dy>0_i64;
+            if settings.smol {
+                let pad = [settings.dx,settings.dx,settings.dy,settings.dy];
+                let mode = "constant";
+                let value = 220.0;                  //yolov5 pads with grey https://github.com/ultralytics/yolov5/discussions/7126
+                img = img.pad(&pad, mode, value)
+            }
+            settings.first=false;
+        }
+        if !settings.first{
+            if settings.big {
+                img = tch::vision::image::resize_preserve_aspect_ratio(&img, self.w, self.h).unwrap()
+            }
+            if settings.smol {
+                let pad = [settings.dx,settings.dx,settings.dy,settings.dy];
+                let mode = "constant";
+                let value = 220.0;                  //yolov5 pads with grey https://github.com/ultralytics/yolov5/discussions/7126
+                img = img.pad(&pad, mode, value)
+            }
+        }
+
+        return img 
+    
+
+    }
+}
+struct ImageSettings{
+    first:bool,
+    big:bool,
+    dy:i64,
+    dx:i64,
+    smol:bool
+}
+impl ImageSettings{
+    fn new()->ImageSettings{
+        ImageSettings { first: true, big: false, dy: 0, dx: 0, smol: false }
     }
 }
