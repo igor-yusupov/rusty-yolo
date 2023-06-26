@@ -5,7 +5,7 @@ use tch;
 fn main() {
     let device = tch::Device::cuda_if_available();
     let yolo_model = rusty_yolo::YOLO::new(
-        "./examples/simple_inference/weights/model.pt",
+        "./examples/simple_inference/yolo.torchscript",
         384,
         640,
         device,

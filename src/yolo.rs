@@ -38,7 +38,7 @@ impl YOLO {
         let mut image_settings = ImageSettings::new();
         let img: Vec<tch::Tensor> = images
             .into_iter()
-            .map(|x| tch::vision::image::resize(&x, self.w, self.h).unwrap())
+            .map(|x| self.pre_process(x.shallow_clone(), &mut image_settings))
             .collect();
         let img = tch::Tensor::stack(&img, 0);
         let img = img
@@ -62,7 +62,7 @@ impl YOLO {
     }
 
     pub fn predict(&self, image: &tch::Tensor, conf_thresh: f64, iou_thresh: f64) -> Vec<BBox> {
-        let img = tch::vision::image::resize(&image, self.w, self.h).unwrap();
+        let img = image.shallow_clone();//tch::vision::image::resize(&image, self.w, self.h).unwrap();
         let mut image_settings = ImageSettings::new();
         let img = self.pre_process(img, &mut image_settings)
             .unsqueeze(0)
@@ -189,11 +189,24 @@ impl YOLO {
 
 
 
-    fn pre_process(&self, mut img:Tensor, settings:& mut ImageSettings)->Tensor{
-        if settings.first{
-            settings.big = img.size()[1]>self.h || img.size()[2]>self.w;
+    fn pre_process(&self, mut img: Tensor, settings:& mut ImageSettings)->Tensor{
+        if settings.init{
+            let img_height = img.size()[1];
+            let img_width = img.size()[2];
+           
+            settings.big = img_height>self.h || img_width>self.w;
+           
             if settings.big {
-                img = tch::vision::image::resize_preserve_aspect_ratio(&img, self.w, self.h).unwrap()
+                 let aspect_ratio = img_width/img_height;
+                if aspect_ratio>1{
+                    settings.resize_width = self.w;
+                    settings.resize_height=self.h/aspect_ratio;
+                } else {
+                    settings.resize_width = self.w/aspect_ratio;
+                    settings.resize_height=self.h;
+                }
+                img = tch::vision::image::resize(&img, settings.resize_width, settings.resize_height).unwrap()
+               
             }
             
             settings.dy = (self.h-img.size()[1])/2;
@@ -205,18 +218,21 @@ impl YOLO {
                 let mode = "constant";
                 let value = 220.0;                  //yolov5 pads with grey https://github.com/ultralytics/yolov5/discussions/7126
                 img = img.pad(&pad, mode, value)
+                
             }
-            settings.first=false;
+            settings.init=false;
         }
-        if !settings.first{
+        if !settings.init{
             if settings.big {
-                img = tch::vision::image::resize_preserve_aspect_ratio(&img, self.w, self.h).unwrap()
+                img = tch::vision::image::resize(&img, settings.resize_width, settings.resize_height).unwrap()
+                
             }
             if settings.smol {
                 let pad = [settings.dx,settings.dx,settings.dy,settings.dy];
                 let mode = "constant";
-                let value = 220.0;                  //yolov5 pads with grey https://github.com/ultralytics/yolov5/discussions/7126
+                let value = 220.0;                  
                 img = img.pad(&pad, mode, value)
+             
             }
         }
 
@@ -226,14 +242,17 @@ impl YOLO {
     }
 }
 struct ImageSettings{
-    first:bool,
+    init:bool,
     big:bool,
+    smol:bool,
     dy:i64,
     dx:i64,
-    smol:bool
+    resize_height:i64,
+    resize_width:i64,
+    
 }
 impl ImageSettings{
     fn new()->ImageSettings{
-        ImageSettings { first: true, big: false, dy: 0, dx: 0, smol: false }
+        ImageSettings { init: true, big: false, dy: 0, dx: 0, smol: false , resize_height:0, resize_width:0}
     }
 }
