@@ -9,14 +9,27 @@ pub struct BBox {
     pub conf: f64,
     pub cls: usize,
 }
-
+struct ImageSettings{
+    init:bool,
+    big:bool,
+    smol:bool,
+    dy:i64,
+    dx:i64,
+    resize_height:i64,
+    resize_width:i64,
+    
+}
+impl ImageSettings{
+    fn new()->ImageSettings{
+        ImageSettings { init: true, big: false, dy: 0, dx: 0, smol: false , resize_height:0, resize_width:0}
+    }
+}
 pub struct YOLO {
     model: tch::CModule,
     device: tch::Device,
     h: i64,
     w: i64,
 }
-
 impl YOLO {
     pub fn new(weights: &str, h: i64, w: i64, device: tch::Device) -> YOLO {
         let mut model = tch::CModule::load_on_device(weights, device).unwrap();
@@ -186,10 +199,20 @@ impl YOLO {
         return result;
     }
 
-
-
-
     fn pre_process(&self, mut img: Tensor, settings:& mut ImageSettings)->Tensor{
+        if !settings.init{
+            if settings.big {
+                img = tch::vision::image::resize(&img, settings.resize_width, settings.resize_height).unwrap()
+                
+            }
+            if settings.smol {
+                let pad = [settings.dx,settings.dx,settings.dy,settings.dy];
+                let mode = "constant";
+                let value = 220.0;                  
+                img = img.pad(&pad, mode, value)
+             
+            }
+        }
         if settings.init{
             let img_height = img.size()[1];
             let img_width = img.size()[2];
@@ -222,37 +245,8 @@ impl YOLO {
             }
             settings.init=false;
         }
-        if !settings.init{
-            if settings.big {
-                img = tch::vision::image::resize(&img, settings.resize_width, settings.resize_height).unwrap()
-                
-            }
-            if settings.smol {
-                let pad = [settings.dx,settings.dx,settings.dy,settings.dy];
-                let mode = "constant";
-                let value = 220.0;                  
-                img = img.pad(&pad, mode, value)
-             
-            }
-        }
-
         return img 
     
 
-    }
-}
-struct ImageSettings{
-    init:bool,
-    big:bool,
-    smol:bool,
-    dy:i64,
-    dx:i64,
-    resize_height:i64,
-    resize_width:i64,
-    
-}
-impl ImageSettings{
-    fn new()->ImageSettings{
-        ImageSettings { init: true, big: false, dy: 0, dx: 0, smol: false , resize_height:0, resize_width:0}
     }
 }
