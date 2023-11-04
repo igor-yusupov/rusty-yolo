@@ -90,7 +90,7 @@ impl YOLO {
     }
 
     fn draw_line(&self, t: &mut tch::Tensor, x1: i64, x2: i64, y1: i64, y2: i64) {
-        let color = tch::Tensor::of_slice(&[255., 0., 0.]).view([3, 1, 1]);
+        let color = tch::Tensor::from_slice(&[255., 0., 0.]).view([3, 1, 1]);
         t.narrow(2, x1, x2 - x1)
             .narrow(1, y1, y2 - y1)
             .copy_(&color)
@@ -125,7 +125,13 @@ impl YOLO {
         let mut bboxes: Vec<Vec<BBox>> = (0..nclasses).map(|_| vec![]).collect();
 
         for index in 0..npreds {
-            let pred = Vec::<f64>::from(pred.get(index));
+            let pred_index: tch::Tensor = pred.get(index);
+            // let pred: Vec<f64> = Vec::<f64>::from(pred_index);
+            let len = pred_index.size1().unwrap() as usize;
+            let mut pred_vec = vec![0f64; len]; // Create a vector of the appropriate size.
+            pred_index.copy_data(&mut pred_vec, len); // Copy the tensor data into the vector.
+            let pred = pred_vec;
+
             let confidence = pred[4];
 
             if confidence > conf_thresh {
